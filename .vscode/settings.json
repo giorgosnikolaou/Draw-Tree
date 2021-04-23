@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "bmp.h": "c",
-        "assert.h": "c"
+        "assert.h": "c",
+        "stdlib.h": "c"
     }
 }

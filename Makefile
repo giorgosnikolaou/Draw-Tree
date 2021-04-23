@@ -1,7 +1,7 @@
-# paths
+# Paths
 LIB = lib
-INCLUDE = ../AVLTree
-MODULES = ../AVLTree
+INCLUDE = include
+MODULES = modules
 
 # Files to read
 FILES = 
@@ -9,17 +9,17 @@ FILES =
 # compiler
 CC = gcc
 
-# Compile options. Το -I<dir> λέει στον compiler να αναζητήσει εκεί include files
+# Compile options
 CFLAGS = -Wall -Werror -g -I$(INCLUDE)
 LDFLAGS = -lm
 
-# Αρχεία .o
-OBJS = tree_test.o $(LIB)/libbmp.a $(MODULES)/AVLTree.o
+# .o files
+OBJS = main.o $(LIB)/libbmp.a $(MODULES)/AVLTree.o $(MODULES)/draw_tree.o
 
-# Το εκτελέσιμο πρόγραμμα
-EXEC = tree_test
+# Executable
+EXEC = main
 
-# Παράμετροι για δοκιμαστική εκτέλεση
+# Arguments
 ARGS =
 
 
@@ -27,7 +27,7 @@ $(EXEC): $(OBJS)
 	$(CC) $(OBJS) -o $(EXEC) $(LDFLAGS)
 
 
-# το ίδιο για το libbmp.a
+# To compile libbmp.a, we run make in the lib directory.
 $(LIB)/libbmp.a:
 	$(MAKE) -C $(LIB) libbmp.a
 
