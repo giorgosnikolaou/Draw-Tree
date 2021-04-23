@@ -21,8 +21,8 @@ To compile the demo main open the initial directory in the terminal and run
 ```bash
 make run
 ```
-To show the steps, while inserting-removing you need to add -DSHOW_STEP onto the CFLAGS. <br />
-To only show the tree after the insertion, with the function call from main, you need to add -DDRAW onto the CFLAGS.
+To only show the tree after the insertion, with the function call from main, you need to add -DDRAW onto the CFLAGS. <br />
+To show the steps, while inserting-removing and with a function call from main you only need to add -DSHOW_STEP onto the CFLAGS.
 
 ## Algorithm
 
