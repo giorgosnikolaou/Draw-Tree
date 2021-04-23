@@ -36,9 +36,26 @@ int main(void)
 {
     srand(time(NULL));
     
-    AVLTree tree = fill_tree(compare_ints, free);
+    // AVLTree tree = fill_tree(compare_ints, free);
     
-    avl_print_tree(tree);
+    // avl_print_tree(tree);
+    
+    // 1, 2, 3, 5, 6, 4, 7, 8, 10, 9
+
+    AVLTree tree = avl_create(compare_ints, free);
+    avl_insert(tree, create_int(1));
+    avl_insert(tree, create_int(2));
+    avl_insert(tree, create_int(3));
+    avl_insert(tree, create_int(5));
+    avl_insert(tree, create_int(6));
+    avl_insert(tree, create_int(4));
+    avl_insert(tree, create_int(7));
+    avl_insert(tree, create_int(8));
+    avl_insert(tree, create_int(10));
+    avl_insert(tree, create_int(9));
+
+    int a = 3;
+    avl_remove(tree, &a);
 
     #ifdef DRAW
         avl_draw(tree, "tree.png");

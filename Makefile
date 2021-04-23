@@ -10,7 +10,7 @@ FILES =
 CC = gcc
 
 # Compile options
-CFLAGS = -Wall -Werror -g -DDRAW -I$(INCLUDE)
+CFLAGS = -Wall -Werror -g -DDRAW -DSHOW_STEP -I$(INCLUDE)
 LDFLAGS = -lm
 
 # .o files

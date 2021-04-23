@@ -3,6 +3,13 @@
 #include <stdio.h>
 #include <assert.h>
 #include "AVLTree.h"
+
+#ifdef SHOW_STEP
+    #ifndef DRAW
+        #define DRAW
+    #endif
+#endif
+
 #ifdef DRAW
     #include "bmp.h"
 #endif
@@ -25,8 +32,12 @@ struct avl_tree_node
     int height; 
 }; 
   
-
-
+#ifdef SHOW_STEP
+    int im_count = 0;
+    int flag1 = 0;
+    int flag2 = 0;
+    int flag3 = 0;
+#endif
 
 int tabs = 0;
 
@@ -62,7 +73,44 @@ void avl_print_tree(AVLTree tree)
     printf("\n");
 }
 
+#ifdef DRAW
+    static char* int_to_str(int val)
+    {
+        int temp = val;
+        size_t length = 0;
 
+        while (temp)
+        {
+            length++;
+            temp /= 10;
+        }
+
+        temp = val;
+        
+        length += val == 0; // In the spacial case where the value is 0 it will never enter the loop and the length would be 0  
+
+        char* str = calloc(1, sizeof(char) * (length + 1));
+        sprintf(str, "%d", val);
+
+        return str;
+    }
+
+
+        
+
+    static void create_png(AVLTree tree, char* msg)
+    {
+        char* num = int_to_str(++im_count);
+        char* name = calloc(1, 7 + strlen(num) + 1);
+
+        sprintf(name, "%s%s.png", num, msg);
+        
+        avl_draw(tree, name);
+        free(num);
+        free(name);
+    }
+
+#endif
 
 // Returns the maximum of two integers 
 static int max(int a, int b) 
@@ -105,6 +153,9 @@ static AVLNode new_node(void* key)
 // Right rotates subtree rooted with node 
 static AVLNode rotate_right(AVLNode node) 
 { 
+    #ifdef SHOW_STEP
+        flag1 = 1;
+    #endif
     AVLNode node_left = node->left; 
     AVLNode node_right = node_left->right; 
   
@@ -124,6 +175,9 @@ static AVLNode rotate_right(AVLNode node)
 // Left rotates subtree rooted with node  
 static AVLNode rotate_left(AVLNode node) 
 { 
+    #ifdef SHOW_STEP
+        flag1 = 1;
+    #endif
     AVLNode node_right = node->right; 
     AVLNode node_left = node_right->left; 
   
@@ -150,7 +204,7 @@ static int get_balance(AVLNode node)
 } 
   
 
-static AVLNode fix_balance(AVLNode node)
+static AVLNode fix_balance(AVLTree tree, AVLNode node)
 {
     // Update height of this ancestor node
     node->height = 1 + max(height(node->left), height(node->right)); 
@@ -168,6 +222,11 @@ static AVLNode fix_balance(AVLNode node)
     if (balance > 1 && get_balance(node->left) < 0)  
     {  
         node->left = rotate_left(node->left);  
+
+        #ifdef SHOW_STEP
+            create_png(tree, "aro");
+        #endif
+
         return rotate_right(node);  
     }  
   
@@ -179,16 +238,22 @@ static AVLNode fix_balance(AVLNode node)
     if (balance < -1 && get_balance(node->right) > 0)  
     {  
         node->right = rotate_right(node->right);  
+
+        #ifdef SHOW_STEP
+            create_png(tree, "aro");
+        #endif
+
         return rotate_left(node);  
     }  
-  
+
+    
     return node;  
 }
 
 
 // Inserts a key in the subtree rooted 
 // with node and returns the new root of the subtree. 
-static AVLNode insert(AVLNode node, CompareFunc compare, void* key, bool* done) 
+static AVLNode insert(AVLTree tree, AVLNode node, CompareFunc compare, void* key, bool* done) 
 { 
     /* 1.  Perform the normal BST insertion */
     if (node == NULL) 
@@ -200,13 +265,18 @@ static AVLNode insert(AVLNode node, CompareFunc compare, void* key, bool* done)
     int comp = compare(key, node->key);
 
     if (comp < 0) 
-        node->left = insert(node->left, compare, key, done); 
+        node->left = insert(tree, node->left, compare, key, done); 
     else if (comp > 0) 
-        node->right = insert(node->right, compare, key, done); 
+        node->right = insert(tree, node->right, compare, key, done); 
     
     // Equal keys are not allowed in BST, but we never have equal keys
-    
-    return fix_balance(node); 
+    #ifdef SHOW_STEP
+        if (flag2 == 0) 
+            create_png(tree, "ins");
+        flag2 = 1;
+    #endif
+
+    return fix_balance(tree, node); 
 } 
 
 
@@ -305,10 +375,36 @@ static AVLNode find_next(AVLNode node, CompareFunc compare, AVLNode target)
 
 }
 
+
+
+static AVLNode remove_min_node(AVLTree tree, AVLNode node, AVLNode* min_node)
+{
+    if (node->left == NULL) 
+    {
+		*min_node = node;       // Node is the smallest
+		return node->right;		// Right child is the new root
+	} 
+    else 
+    {
+		// Smallest value is in the left subtree
+        // We update node->left with the new root
+		node->left = remove_min_node(tree, node->left, min_node);
+
+        AVLNode temp = fix_balance(tree, node); 
+
+        #ifdef SHOW_STEP
+            if (flag3 == 0)
+                create_png(tree, "aro");
+            flag3 = 1;
+        #endif
+
+		return temp;
+	}
+}
   
 // Recursive function to delete a node with given key from subtree with  
 // given root. It returns root of the modified subtree.  
-static AVLNode node_delete(AVLNode node, CompareFunc compare, void* key, void** to_destroy, bool* done)  
+static AVLNode node_delete(AVLTree tree, AVLNode node, CompareFunc compare, void* key, void** to_destroy, bool* done)  
 {  
     
     // to_destroy is the node value we need to destroy with the destroy func given when creating the array
@@ -327,21 +423,21 @@ static AVLNode node_delete(AVLNode node, CompareFunc compare, void* key, void** 
     // than the root's key, then it lies 
     // in left subtree  
     if (comp < 0)  
-        node->left = node_delete(node->left, compare, key, to_destroy, done);
+        node->left = node_delete(tree, node->left, compare, key, to_destroy, done);
   
     // If the key to be deleted is greater  
     // than the root's key, then it lies  
     // in right subtree  
     else if(comp > 0)  
-        node->right = node_delete(node->right, compare, key, to_destroy, done);
+        node->right = node_delete(tree, node->right, compare, key, to_destroy, done);
   
     // if key is same as root's key, then  
     // This is the node to be deleted  
     else
     {  
         *done = true;
-        // printf("heheheheheh\n\n");
         *to_destroy = node->key;
+        
         // node with only one child or no child  
         if( (node->left == NULL) || (node->right == NULL) )  
         {  
@@ -361,18 +457,25 @@ static AVLNode node_delete(AVLNode node, CompareFunc compare, void* key, void** 
         }  
         else
         {  
-            // node with two children: Get the inorder  
-            // successor (smallest in the right subtree)  
-            AVLNode temp = node_find_min(node->right);
-            node->right = temp;
-  
-            // Replace node with temp 
-			temp->left = node->left;
-			temp->right = node->right;
+            #ifdef SHOW_STEP
+                flag3 = 0;
+            #endif
+
+            AVLNode min_right;
+			node->right = remove_min_node(tree, node->right, &min_right);
+
+			min_right->left = node->left;
+			min_right->right = node->right;
 
 			free(node);
+            
+			AVLNode temp = fix_balance(tree, min_right); 
 
-			return fix_balance(temp);
+            #ifdef SHOW_STEP
+                flag3 = 0;
+            #endif
+
+            return temp;
         }  
     }  
   
@@ -383,7 +486,15 @@ static AVLNode node_delete(AVLNode node, CompareFunc compare, void* key, void** 
     
        
     
-    return fix_balance(node);  
+    AVLNode temp = fix_balance(tree, node); 
+
+    #ifdef SHOW_STEP
+        if (flag3 == 0) 
+            create_png(tree, "aro");
+        flag3 = 1;
+    #endif
+
+    return temp;
 }  
 
 
@@ -434,9 +545,12 @@ bool avl_remove(AVLTree tree, void* key)
 {
     assert(tree != NULL);
 
+
     bool done;
 	void* to_remove = NULL;
-	tree->root = node_delete(tree->root, tree->compare, key, &to_remove, &done);
+	tree->root = node_delete(tree, tree->root, tree->compare, key, &to_remove, &done);
+
+    
 
 	// Change size only if we have actually removed a node
 	if (done)
@@ -447,6 +561,10 @@ bool avl_remove(AVLTree tree, void* key)
 			tree->destroy(to_remove);   // destroy the key of the node we just remove
 	}
 
+    #ifdef SHOW_STEP
+        create_png(tree, "ade");
+    #endif
+
 	return done;
 }
 
@@ -455,14 +573,25 @@ void avl_insert(AVLTree tree, void* key)
 {
     assert(tree != NULL);
 
+    #ifdef SHOW_STEP
+        flag1 = 0;
+        flag2 = 0;
+    #endif
+
+    
 	bool done = 0;
-	tree->root = insert(tree->root, tree->compare, key, &done);
-	
+	tree->root = insert(tree, tree->root, tree->compare, key, &done);
+
 	// Change size only if we have actually removed a node
 	if (done)
 		tree->size++;
     else if (tree->destroy != NULL)
         tree->destroy(key);
+
+    #ifdef SHOW_STEP
+        if (flag1 || tree->size == 1)
+            create_png(tree, "ain");
+    #endif
 	
 }
 
@@ -527,28 +656,6 @@ void avl_destroy(AVLTree tree)
     }
 
 
-    static char* int_to_str(int val)
-    {
-        int temp = val;
-        size_t length = 0;
-
-        while (temp)
-        {
-            length++;
-            temp /= 10;
-        }
-
-        temp = val;
-        
-        length += val == 0; // In the spacial case where the value is 0 it will never enter the loop and the length would be 0  
-
-        char* str = calloc(1, sizeof(char) * (length + 1));
-        sprintf(str, "%d", val);
-
-        return str;
-    }
-
-
     static void draw(Bitmap* bitmap, AVLNode root, int x, int y, int dist_hor, int dist_per, int radius, int levels)
     {
         if (root == NULL)
@@ -594,6 +701,12 @@ void avl_destroy(AVLTree tree)
     {
         if (root == NULL)
             return height - 1;
+        
+        if (height > 10)
+        {
+            int* a = NULL;
+            *a = 0;
+        }
 
         int l = get_max_height(root->left, height + 1);
         int r = get_max_height(root->right, height + 1);
@@ -602,8 +715,22 @@ void avl_destroy(AVLTree tree)
     }
 
 
-    void avl_draw(AVLTree tree, const char* image_name)
+    void avl_draw(AVLTree tree, char* image_name)
     {
+        if (tree->size == 0)
+        {
+            Bitmap* bitmap = bm_create(100, 100);
+
+            bm_set_color(bitmap, bm_atoi("white"));
+            bm_clear(bitmap);
+            bm_save(bitmap, image_name);       
+
+            bm_free(bitmap);
+
+            return ;
+        }
+
+
         int levels = get_max_height(tree->root, 1);
 
         int radius = 20;
@@ -625,10 +752,10 @@ void avl_destroy(AVLTree tree)
         int x = mid;
         int y = radius + 20; // Starting coordinates
         
-        draw(bitmap, tree->root, x, y, dist_hor, dist_per, radius, levels - 1);   
-        
-
-        bm_save(bitmap, image_name);
+        draw(bitmap, tree->root, x, y, dist_hor, dist_per, radius, levels - 1); 
+            
+            
+        bm_save(bitmap, image_name);       
 
         bm_free(bitmap);
     }   
