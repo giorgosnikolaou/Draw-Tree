@@ -2,7 +2,17 @@
 #include <stdlib.h>
 #include "draw_tree.h"
 
-// #define NODE AVLNode
+#ifndef NODE
+    #define NODE AVLNode
+#endif
+
+#ifndef LEFT_CHILD
+    #define LEFT_CHILD left
+#endif
+
+#ifndef RIGHT_CHILD
+    #define RIGHT_CHILD right
+#endif
 
 // a ^ b
 int power(int a, int b)
@@ -33,7 +43,7 @@ static char* int_to_str(int val)
 }
 
 
-void draw(Bitmap* bitmap, AVLNode root, int x, int y, int dist_hor, int dist_per, int radius, int levels)
+void draw(Bitmap* bitmap, NODE root, int x, int y, int dist_hor, int dist_per, int radius, int levels)
 {
     if (root == NULL)
         return ;
@@ -41,10 +51,10 @@ void draw(Bitmap* bitmap, AVLNode root, int x, int y, int dist_hor, int dist_per
     int con = dist_hor * power(2, levels - 1);
 
     // First draw the neccesary circles and lines connecting them
-    if (root->left != NULL)
+    if (root->LEFT_CHILD != NULL)
         bm_line(bitmap, x - con, y + dist_per, x, y);
     
-    if (root->right != NULL)
+    if (root->RIGHT_CHILD != NULL)
         bm_line(bitmap, x + con, y + dist_per, x, y);
 
     bm_set_color(bitmap, bm_atoi("white")); // Since the lines are from the parnent's center to its child we need to remove the line inside the circle
@@ -66,21 +76,21 @@ void draw(Bitmap* bitmap, AVLNode root, int x, int y, int dist_hor, int dist_per
 
     levels--;
     
-    draw(bitmap, root->left, x - con, y + dist_per, dist_hor, dist_per, radius, levels);
-    draw(bitmap, root->right, x + con, y + dist_per, dist_hor, dist_per, radius, levels);
+    draw(bitmap, root->LEFT_CHILD, x - con, y + dist_per, dist_hor, dist_per, radius, levels);
+    draw(bitmap, root->RIGHT_CHILD, x + con, y + dist_per, dist_hor, dist_per, radius, levels);
 
     levels++;
     
 }
 
 
-int get_max_height(AVLNode root, int height)
+int get_max_height(NODE root, int height)
 {
     if (root == NULL)
         return height - 1;
 
-    int l = get_max_height(root->left, height + 1);
-    int r = get_max_height(root->right, height + 1);
+    int l = get_max_height(root->LEFT_CHILD, height + 1);
+    int r = get_max_height(root->RIGHT_CHILD, height + 1);
     
     return (l > r) ? l : r;
 }

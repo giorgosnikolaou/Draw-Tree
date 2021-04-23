@@ -17,10 +17,10 @@
  * License
  * -------
  *
- * ```
+ * ```txt
  * MIT License
  *
- * Copyright (c) 2017 Werner Stoop
+ * Copyright (c) 2017 Werner Stoop <wstoop@gmail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -48,7 +48,7 @@
 #ifndef BMP_H
 #define BMP_H
 
-#if defined(__cplusplus) || defined(c_plusplus)
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -60,6 +60,21 @@ extern "C" {
 /**
  * ### Structures
  */
+
+/**
+ * #### `typedef struct bitmap Bitmap;`
+ *
+ * Structure containing a bitmap image.
+ *
+ * - Use `bm_width()` and `bm_height()` to get the dimensions of a bitmap
+ * - Use `bm_set_color()` and `bm_get_color()` to access the color used when drawing
+ * - Use `bm_clip()`, `bm_get_clip()` and `bm_set_clip()` to manipulate the clipping
+ *      rectangle used when drawing
+ * - Use `bm_set_font()` and `bm_get_font()` to access the font used with `bm_puts()`
+ *      and related routines
+ * - Use `bm_raw_data()` to access the raw pixel data in the bitmap.
+ */
+typedef struct bitmap Bitmap;
 
 /**
  * #### `typedef struct BmPoint BmPoint;`
@@ -81,41 +96,6 @@ typedef struct BmRect {
 } BmRect;
 
 /**
- * #### `typedef struct bitmap Bitmap;`
- * Structure containing a bitmap image.
- *
- * The internal format is `0xAARRGGBB` little endian.
- * Meaning that `p[0]` contains B, `p[1]` contains G,
- * `p[2]` contains R and `p[3]` contains A
- * and the data buffer is an array of bytes BGRABGRABGRABGRABGRA...
- *
- * The member `color` contains the color that will be used for drawing
- * primitives, and for transparency while blitting.
- *
- * The member `font` is a pointer to a `BmFont` structure that is used
- * to render text. See the [Font Routines][] section for more details.
- *
- * The member `clip` is a `BmRect` that defines the clipping rectangle
- * when drawing primitives and text.
- */
-typedef struct bitmap {
-    /* Dimesions of the bitmap */
-    int w, h;
-
-    /* The actual pixel data in RGBA format */
-    unsigned char *data;
-
-    /* Color for the pen of the canvas */
-    unsigned int color;
-
-    /* Font object for rendering text */
-    struct bitmap_font *font;
-
-    /* Clipping rectangle */
-    BmRect clip;
-} Bitmap;
-
-/**
  * #### `typedef struct bitmap_font BmFont;`
  *
  * Structure that represents the details about a font.
@@ -123,18 +103,21 @@ typedef struct bitmap {
  *
  * It has these members:
  * * `const char *type` - a text description of the type of font
+ * * `ref_count` - a reference count for the font - This should be set
+ *      to `1` when the font is created.
  * * `int (*puts)(Bitmap *b, int x, int y, const char *text)` -
- *   Pointer to the function that will actually render the text.
+ *      Pointer to the function that will actually render the text.
  * * `int (*width)(struct bitmap_font *font)` - Function that returns the
- *   width (in pixels) of a single character in the font.
+ *      width (in pixels) of a single character in the font.
  * * `int (*height)(struct bitmap_font *font)` - Function that returns the
- *   height (in pixels) of a single character in the font.
+ *      height (in pixels) of a single character in the font.
  * * `void (*dtor)(struct bitmap_font *font)` - Destructor function that
- *   deallocates all memory allocated to the `BmFont` object.
+ *      deallocates all memory allocated to the `BmFont` object.
  * * `void *data` - Additional data that may be required by the font.
  */
 typedef struct bitmap_font {
     const char *type;
+    unsigned int ref_count;
     int (*puts)(Bitmap *b, int x, int y, const char *text);
     int (*width)(struct bitmap_font *font);
     int (*height)(struct bitmap_font *font);
@@ -177,22 +160,24 @@ Bitmap *bm_crop(Bitmap *b, int x, int y, int w, int h);
 /**
  * #### `Bitmap *bm_from_Xbm(int w, int h, unsigned char *data)`
  *
- * Creates a `Bitmap` object from [XBM data](https://en.wikipedia.org/wiki/X_BitMap).
+ * Creates a `Bitmap` object from [XBM data][XBM].
  *
  * The XBM image is imported into a program through a `#include "include.xbm"` directive.
  *
  * The width `w` and height `h` are the `_width` and `_height` variables at the top of the XBM file.
  * The `data` parameter is the `_bits` variable in the XBM file.
+ *
+ * [XBM]: https://en.wikipedia.org/wiki/X_BitMap
  */
 Bitmap *bm_from_Xbm(int w, int h, unsigned char *data);
 
 /**
- * #### `Bitmap *bm_from_Xpm(char *xpm[])`
+ * #### `Bitmap *bm_from_Xpm(const char *xpm[])`
  *
  * Creates a `Bitmap` object from [X PixMap](https://en.wikipedia.org/wiki/X_PixMap)
  * data in a source file.
  */
-Bitmap *bm_from_Xpm(char *xpm[]);
+Bitmap *bm_from_Xpm(const char *xpm[]);
 
 /**
  * #### `int bm_width(Bitmap *b)`
@@ -207,6 +192,27 @@ int bm_width(Bitmap *b);
  * Retrieves the height of the bitmap `b`
  */
 int bm_height(Bitmap *b);
+
+/**
+ * #### `unsigned char *bm_raw_data(Bitmap *b)`
+ *
+ * Retrieves the raw pixels in the bitmap `b`.
+ *
+ * The internal format is `0xAARRGGBB` little endian.
+ * Meaning that `p[0]` contains B, `p[1]` contains G,
+ * `p[2]` contains R and `p[3]` contains A
+ * and the data buffer is an array of bytes BGRABGRABGRABGRABGRA...
+ */
+unsigned char *bm_raw_data(Bitmap *b);
+
+/**
+ * #### `int bm_pixel_count(Bitmap *b)`
+ *
+ * Returns the number of pixels in the bitmap `b`.
+ *
+ * Essentially `bm_width(b) * bm_height(b)`
+ */
+int bm_pixel_count(Bitmap *b);
 
 /**
  * ### File I/O Functions
@@ -227,6 +233,13 @@ int bm_height(Bitmap *b);
  * Returns `NULL` if the file could not be loaded.
  */
 Bitmap *bm_load(const char *filename);
+
+/**
+ * #### `int bm_loadf(const char *fmt, ...)`
+ *
+ * Like `bm_load()`, but the filename is given as a `printf()`-style format string.
+ */
+Bitmap *bm_loadf(const char *fmt, ...);
 
 #ifdef EOF /* <stdio.h> included? http://stackoverflow.com/q/29117606/115589 */
 /**
@@ -273,7 +286,7 @@ Bitmap *bm_load_base64(const char *base64);
  * #### `Bitmap *bm_load_rw(SDL_RWops *file)`
  *
  * Loads a bitmap from a SDL `SDL_RWops*` structure,
- * for use with the [SDL library] (http://www.libsdl.org).
+ * for use with the [SDL library](http://www.libsdl.org).
  *
  * This function is only available if the `USESDL` preprocessor macro
  * is defined, and `SDL.h` is included before `bmp.h`.
@@ -330,6 +343,46 @@ Bitmap *bm_from_stb(int w, int h, unsigned char *data);
 int bm_save(Bitmap *b, const char *fname);
 
 /**
+ * #### `int bm_savef(Bitmap *b, const char *fname, ...)`
+ *
+ * Like `bm_save()`, but the filename is given as a `printf()`-style format string.
+ */
+int bm_savef(Bitmap *b, const char *fname, ...);
+
+/**
+ * ### Reference Counting Functions
+ *
+ * These functions implement reference counting on `Bitmap` objects.
+ *
+ * Call `bm_retain()` on a bitmap at every location where a reference is held.
+ * Then call `bm_release()` on the bitmap when those references are no longer being held.
+ * When the last reference is released, the bitmap will be freed automatically.
+ *
+ * _Reference counting is optional:_ Bitmap objects are created with a reference
+ * count of zero to indicate they are not managed by the reference counter, and those
+ * should be destroyed through `bm_free()`.
+ */
+
+/**
+ * #### `Bitmap *bm_retain(Bitmap *b)`
+ *
+ * Increments the reference count of a `Bitmap` object `b`.
+ *
+ * It returns the object.
+ */
+Bitmap *bm_retain(Bitmap *b);
+
+/**
+ * #### `void bm_release(Bitmap *b)`
+ *
+ * Decrements the reference count of a `Bitmap` object.
+ *
+ * If the reference count reaches 0, `bm_free()` is called on
+ * the object, and the pointer is no longer valid.
+ */
+void bm_release(Bitmap *b);
+
+/**
  * ### Binding Functions
  * These functions are used to bind a `Bitmap` structure to
  * an existing memory buffer such as an OpenGL texture, an
@@ -343,8 +396,9 @@ int bm_save(Bitmap *b, const char *fname);
  * of pixel data (for example, an OpenGL texture or a SDL surface). The
  * `data` must be an array of `w` &times; `h` &times; 4 bytes of ARGB pixel data.
  *
- * The returned `Bitmap*` must be destroyed with `bm_unbind()`
- * rather than `bm_free()`.
+ * ~~The returned `Bitmap*` must be destroyed with `bm_unbind()`
+ * rather than `bm_free()`.~~ In the latest versions, `bm_unbind()` just calls
+ * `bm_free()`
  */
 Bitmap *bm_bind(int w, int h, unsigned char *data);
 
@@ -353,6 +407,7 @@ Bitmap *bm_bind(int w, int h, unsigned char *data);
  *
  * Changes the data referred to by a bitmap structure previously
  * created with a call to `bm_bind()`.
+ *
  * The new data must be of the same dimensions as specified
  * in the original `bm_bind()` call.
  */
@@ -363,30 +418,11 @@ void bm_rebind(Bitmap *b, unsigned char *data);
  *
  * Deallocates the memory of a bitmap structure previously created
  * through `bm_bind()`.
+ *
+ * **Deprecated** - in the newest versions, this function just
+ * calls `bm_free()`
  */
 void bm_unbind(Bitmap *b);
-
-/**
- * #### `Bitmap *bm_bind_static(Bitmap *b, unsigned char *data, int w, int h)`
- *
- * Binds a `Bitmap` structure to an array of `w` &times; `h` &times; 4 bytes.
- *
- * The intended use case is to manipulate bitmaps in local variables in functions.
- * This function does not allocate memory for the `Bitmap` structure, so the
- * return value should _not_ be freed by `bm_free()` or `bm_unbind()`.
- *
- * The following example creates a temporary copy if a bitmap `orig` which will
- * be removed automatically when the calling function returns, and does not require
- * the overhead of `malloc()` and `free()` as the other Bitmap create/bind functions.
- *
- * ```c
- * Bitmap b;
- * unsigned char buffer[WIDTH * HEIGHT * 4];
- * bm_bind_static(&b, buffer, WIDTH, HEIGHT);
- * memcpy(b.data, orig->data, WIDTH * HEIGHT * 4);
- * ```
- */
-Bitmap *bm_bind_static(Bitmap *b, unsigned char *data, int w, int h);
 
 /**
  * ### Clipping and Buffer Manipulation Functions
@@ -510,7 +546,7 @@ unsigned int bm_picker(Bitmap *bm, int x, int y);
  * Additionally, it also supports the CSS syntax for "RGB(r,g,b)",
  * "RGBA(r,g,b,a)", "HSL(h,s,l)" and "HSLA(h,s,l,a)".
  *
- * The list of supported colors are based on the wikipedia's
+ * The list of supported colors are based on Wikipedia's
  * list of HTML and X11 [Web colors](http://en.wikipedia.org/wiki/Web_colors).
  *
  * It returns 0 (black) if the string couldn't be parsed.
@@ -523,17 +559,6 @@ unsigned int bm_atoi(const char *text);
  * Builds a color from the specified `(R,G,B)` values
  */
 unsigned int bm_rgb(unsigned char R, unsigned char G, unsigned char B);
-
-/**
- * #### `int bm_colcmp(unsigned int c1, unsigned int c2)`
- *
- * Compares the RGB values of two colors, ignoring the alphas values
- * (If the alpha values are important you can just use `==`).
- *
- * Returns non-zero if the RGB values of `c1` and `c2` are the same,
- * zero otherwise.
- */
-int bm_colcmp(unsigned int c1, unsigned int c2);
 
 /**
  * #### `unsigned int bm_rgba(unsigned char R, unsigned char G, unsigned char B, unsigned char A)`
@@ -581,6 +606,17 @@ unsigned int bm_hsla(double H, double S, double L, double A);
 void bm_get_hsl(unsigned int col, double *H, double *S, double *L);
 
 /**
+ * #### `int bm_colcmp(unsigned int c1, unsigned int c2)`
+ *
+ * Compares the RGB values of two colors, ignoring the alphas values
+ * (If the alpha values are important you can just use `==`).
+ *
+ * Returns non-zero if the RGB values of `c1` and `c2` are the same,
+ * zero otherwise.
+ */
+int bm_colcmp(unsigned int c1, unsigned int c2);
+
+/**
  * #### `unsigned int bm_byte_order(unsigned int col)`
  *
  * Fixes the input color to be in the proper byte order.
@@ -600,6 +636,15 @@ unsigned int bm_byte_order(unsigned int col);
  * If `t` is 0 it returns `color1`. If `t` is 1.0 it returns `color2`.
  */
 unsigned int bm_lerp(unsigned int color1, unsigned int color2, double t);
+
+/**
+ * #### `unsigned int bm_graypixel(unsigned int c)`
+ *
+ * Converts a color to its grayscale value.
+ *
+ * See <https://en.wikipedia.org/wiki/Grayscale>
+ */
+unsigned int bm_graypixel(unsigned int c);
 
 /**
  * ### Blitting Functions
@@ -690,12 +735,54 @@ unsigned int bm_smp_blend50(Bitmap *dst, int dx, int dy, Bitmap *src, int sx, in
 void bm_rotate_blit(Bitmap *dst, int ox, int oy, Bitmap *src, int px, int py, double angle, double scale);
 
 /**
+ * #### `void bm_stretch(Bitmap *dst, Bitmap *src, BmPoint P[4])`
+ *
+ * Stretches a bitmap `src` onto the quadrilateral defined by the four points `P`
+ * on the destination `dst`.
+ *
+ * The clipping rectangle of `src` controls the region of `src` that should be stretched
+ * onto `dst`. It won't draw anything outside of `dst`'s clipping region.
+ *
+ * Vertices in `P` are in clockwise order. `P[0]` corresponds to the top left, `P[1]` to
+ * the top right, `P[2]` to the bottom right and `P[3]` to the bottom left of `src`.
+ */
+void bm_stretch(Bitmap *dst, Bitmap *src, BmPoint P[4]);
+
+/**
+ * #### `void bm_destretch(Bitmap *dst, Bitmap *src, BmPoint P[4])`
+ *
+ * Fits the quadrilateral defined by the four points `P` on the bitmap `src` into the
+ * destination bitmap `dst`.
+ *
+ * It is the inverse operation of `bm_stretch()`.
+ *
+ * The clipping rectangle of `dst` defines the region into which the quadrilateral should be mapped.
+ * Pixels outside of `src`'s clipping rectangle won't be mapped.
+ *
+ * Vertices in `P` are in clockwise order. `P[0]` corresponds to the top left, `P[1]` to
+ * the top right, `P[2]` to the bottom right and `P[3]` to the bottom left of `dst`.
+ */
+void bm_destretch(Bitmap *dst, Bitmap *src, BmPoint P[4]);
+
+/**
+ * #### `void bm_draw_xbm(Bitmap *dst, int dx, int dy, int sx, int sy, int w, int h, int xbm_w, int xbm_h, unsigned char xbm_data[]);`
+ *
+ * Blits an area of `w` &times; `h` pixels at `sx,sy` in [XBM image data][XBM] to
+ * `dx,dy` on the destination bitmap `dst`.
+ *
+ * It uses the color of `dst` as the foreground. Backdround pixels are unchanged.
+ *
+ * `xbm_w` and `xbm_h` is the width and height of the XBM image respectively. `xbm_data` is the XBM bytes.
+ */
+void bm_blit_xbm(Bitmap *dst, int dx, int dy, int sx, int sy, int w, int h, int xbm_w, int xbm_h, unsigned char xbm_data[]);
+
+/**
  * ### Filter Functions
  */
 
 /** #### `void bm_grayscale(Bitmap *b)`
  *
- * Converts an image to grascale.
+ * Converts an image to grayscale.
  */
 void bm_grayscale(Bitmap *b);
 
@@ -855,7 +942,9 @@ int bm_save_palette(const char * filename, unsigned int *pal, unsigned int npal)
 /**
  * #### `Bitmap *bm_swap_rb(Bitmap *b)`
  *
- * Swaps the Red and Blue channels in a .
+ * Swaps the Red and Blue channels in a bitmap.
+ *
+ * (It is meant for certain use cases where a buffer is BGRA instead of RGBA)
  */
 Bitmap *bm_swap_rb(Bitmap *b);
 
@@ -936,6 +1025,14 @@ void bm_fillcircle(Bitmap *b, int x0, int y0, int r);
  * <x1,y1>, using the pen color
  */
 void bm_ellipse(Bitmap *b, int x0, int y0, int x1, int y1);
+
+/**
+ * #### `void bm_fillellipse(Bitmap *b, int x0, int y0, int x1, int y1)`
+ *
+ * Draws a filled ellipse that occupies the rectangle from <x0,y0> to
+ * <x1,y1>, using the pen color
+ */
+void bm_fillellipse(Bitmap *b, int x0, int y0, int x1, int y1);
 
 /**
  * #### `void bm_round_rect(Bitmap *b, int x0, int y0, int x1, int y1, int r)`
@@ -1059,12 +1156,22 @@ int bm_puts(Bitmap *b, int x, int y, const char *text);
 int bm_printf(Bitmap *b, int x, int y, const char *fmt, ...);
 
 /**
- * #### `void bm_free_font(BmFont *font)`
+ * #### `BmFont *bm_font_retain(BmFont *font)`
  *
- * Deallocates a font. It basically just calls the `dtor` member of the
- * `font` structure.
+ * Increments a font's reference counter.
  */
-void bm_free_font(BmFont *font);
+BmFont *bm_font_retain(BmFont *font);
+
+/**
+ * #### `unsigned int bm_font_release(BmFont *font)`
+ *
+ * Decrements a font's reference counter, and if it's 0,
+ * destroys it by calling its `dtor` function on itself.
+ *
+ * It returns the reference count of the font, so 0
+ * means the font was destroyed.
+ */
+unsigned int bm_font_release(BmFont *font);
 
 /**
  * #### `BmFont *bm_make_ras_font(const char *file, int spacing)`
@@ -1155,32 +1262,20 @@ void bm_set_error(const char *e);
 /**
  * TODO
  * ----
- * - [x] I should also go through the API and make the naming a bit more consistent.
- *     - ~~Functions like `bm_rect()` should use `w,h` instead of `x1,y1` as parameters.~~
- * - [ ] How about replacing functions like `bm_brightness()` with a `bm_foreach()`
- *       function that takes a callback which iterates over all the pixels to simplify
- *       the API.  \
- *       The callback can look like `int (*)(Bitmap *b, int oldcolor, int x, int y)`
- * - [ ] I've added a precompiler definition `IGNORE_ALPHA` which causes all color
- *       operations to apply a `& 0x00FFFFFF` so that alpha values are ignored.  \
- *       It is not properly tested because I don't have any serious projects that
- *       depends on the alpha values at the moment.
- * - [x] `bm_fill()` should _perhaps_ stop using `bm_picker()`
- * - [ ] To consider: In `bm_rotate_blit()` perhaps check `u,v` against the `src`
- *       clipping rect instead.  \
- *       If I do this, I might have to do it for all blitting functions.
- * - [x] Maybe `bm_fill()` _should_ take the clipping rectangle into account.
- * - [ ] `bm_fillellipse()`, like `bm_ellipse()` but filled.
- * - [x] In `bm_make_ras_font()`, because the top left corner is the space character, we
- *       can assume that the color of that pixel is the transparent color, rather than
- *       hardcoding it as black (0).
+ *
+ * - [ ] [k-d trees][kdtree] have been suggested as a way to speed up nearest neighbour searches.
+ *       I'm thinking in particular in my color quantization code which is a bit naive at the moment.
  * - [ ] `bm_atoi()` does not parse `chucknorris` correctly.  \
  *       See <https://stackoverflow.com/a/8333464/115589>
- * - [ ] It cannot load paletted 8-bit PNG files through libpng at the moment, and I
- *       can't explain why.
  * - [ ] I'm regretting my decision to have the BmFont.width function not look at the
  *       actual character you want to draw, so `bm_text_width()` is broken if you
  *       aren't using a fixed width font.
+ * - [ ] I only recently learned of [Wuffs][wuffs]. It might be worth integrating it in the same way
+ *       I integrate `stb_image` for security sensitive applications.
+ *       ([HN link](https://news.ycombinator.com/item?id=26714831))
+ *
+ * [kdtree]: https://en.wikipedia.org/wiki/K-d_tree
+ * [wuffs]: https://github.com/google/wuffs
  *
  * References
  * ----------
@@ -1214,7 +1309,7 @@ void bm_set_error(const char *e);
  * * [Count the consecutive zero bits (trailing) on the right in parallel](https://graphics.stanford.edu/~seander/bithacks.html#ZerosOnRightParallel)
  */
 
-#if defined(__cplusplus) || defined(c_plusplus)
+#if defined(__cplusplus)
 } /* extern "C" */
 #endif
 

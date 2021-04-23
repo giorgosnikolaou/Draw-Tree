@@ -2,6 +2,7 @@
     "files.associations": {
         "bmp.h": "c",
         "assert.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "avltree.h": "c"
     }
 }

@@ -1,7 +1,6 @@
 # Paths
-LIB = lib
-INCLUDE = include
-MODULES = modules
+INCLUDE = ../include
+MODULES = ../modules
 
 # Files to read
 FILES = 
@@ -15,7 +14,7 @@ LDFLAGS = -lm
 
 # .o files
 # We need to compile the tree before draw_tree.o to have the correct defines for the preproccesor
-OBJS = main.o $(MODULES)/AVLTree.o $(MODULES)/bmp.o # $(LIB)/libbmp.a $(MODULES)/draw_tree.o
+OBJS = main.o $(MODULES)/AVLTree.o $(MODULES)/bmp.o draw_tree.o
 
 # Executable
 EXEC = main
@@ -26,11 +25,6 @@ ARGS =
 
 $(EXEC): $(OBJS)
 	$(CC) $(OBJS) -o $(EXEC) $(LDFLAGS)
-
-
-# To compile libbmp.a, we run make in the lib directory.
-# $(LIB)/libbmp.a:
-# 	$(MAKE) -C $(LIB) libbmp.a
 
 
 clean:

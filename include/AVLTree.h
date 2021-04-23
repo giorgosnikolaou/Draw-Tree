@@ -1,5 +1,6 @@
 #pragma once
 #include <stdbool.h>
+#include "bmp.h"
 
 typedef struct avl_tree* AVLTree;   // Incomplete definition of an AVLTree, the handle of the AVL
 typedef struct avl_tree_node* AVLNode;  // Incomplete definition of an AVLNode
@@ -13,23 +14,6 @@ typedef int (*CompareFunc)(void* a, void* b);
 // Pointer to a function that frees the memory allocated for the value
 typedef void (*DestroyFunc)(void* value);
 
-
-// An AVL tree node 
-struct avl_tree_node 
-{ 
-    void* key; 
-    AVLNode left; 
-    AVLNode right; 
-    int height; 
-}; 
-
-struct avl_tree 
-{
-    AVLNode root;
-    int size;
-    CompareFunc compare;
-    DestroyFunc destroy;
-};
 
 // Given a compare and a destroy function, creates a new avl tree
 // and returns a pointer to it
@@ -78,3 +62,6 @@ void avl_destroy(AVLTree tree);
 
 void avl_print_tree(AVLTree tree);
 
+#ifdef DRAW    
+    void avl_draw(AVLTree tree, const char* image_name);
+#endif
