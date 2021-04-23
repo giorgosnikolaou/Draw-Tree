@@ -9,11 +9,11 @@ They are from [this](https://github.com/wernsey/bitmap) repository from user [@w
 
 Inside GeneralModule there is the program which creates the .png tree reprasentation, with a demo main.c file. <br />
 
-This code needs access to the fields of the nodes and such as it should be implemented inside the tree module. <br />
+This code needs access to the fields of the nodes and such it should be implemented inside the tree module. <br />
 
 I modified my AVLTree ADT to demonstrate such an implementation. <br />
 
-It works with any kind of tree that has exacly 2 children, and can be easily modified to color the nodes different colors, for a red - black tree. <br />
+It works with any kind of tree that has exacly 2 children, and can be easily modified, for example to color the nodes different colors, for a red - black tree. <br />
 
 ## Sample program
 
