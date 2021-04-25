@@ -2,95 +2,138 @@
 #include <stdlib.h>
 #include "draw_tree.h"
 
-#ifndef NODE
-    #define NODE AVLNode
-#endif
 
-#ifndef LEFT_CHILD
-    #define LEFT_CHILD left
-#endif
+#define TREE AVLTree
+#define NODE AVLNode
+#define LEFT_CHILD left
+#define RIGHT_CHILD right
+#define FIND_MIN node_find_min
+#define FIND_MAX node_find_max
+#define NEXT avl_next
+#define PREV avl_prev
 
-#ifndef RIGHT_CHILD
-    #define RIGHT_CHILD right
-#endif
-
-// a ^ b
-int power(int a, int b)
+static int get_size_left(TREE tree, NODE root)
 {
-    return (b > 0) ? power(a, b - 1) * a : 1;
-}
-
-
-static char* int_to_str(int val)
-{
-    int temp = val;
-    size_t length = 0;
-
-    while (temp)
-    {
-        length++;
-        temp /= 10;
-    }
-
-    temp = val;
+    int count = 1;
+    for (NODE node = FIND_MIN(root), max = FIND_MAX(root); node != max; node = NEXT(tree, node))
+        count++;
     
-    length += val == 0; // In the spacial case where the value is 0 it will never enter the loop and the length would be 0  
+    return FIND_MIN(root) ? count : 0;
+}
 
-    char* str = calloc(1, sizeof(char) * (length + 1));
-    sprintf(str, "%d", val);
-
-    return str;
+static int get_size_right(TREE tree, NODE root)
+{
+    int count = 1;
+    for (NODE node = FIND_MAX(root), min = FIND_MIN(root); node != min; node = PREV(tree, node))
+        count++;
+    
+    return FIND_MAX(root) ? count : 0;
 }
 
 
-void draw(Bitmap* bitmap, NODE root, int x, int y, int dist_hor, int dist_per, int radius, int levels)
+static void draw(Bitmap* bitmap, NODE root, int* x, int y, int dist_hor, int dist_per, int radius, TREE tree)
 {
     if (root == NULL)
         return ;
     
-    int con = dist_hor * power(2, levels - 1);
 
-    // First draw the neccesary circles and lines connecting them
-    if (root->LEFT_CHILD != NULL)
-        bm_line(bitmap, x - con, y + dist_per, x, y);
+    int p_y = y + dist_per;
     
-    if (root->RIGHT_CHILD != NULL)
-        bm_line(bitmap, x + con, y + dist_per, x, y);
+    // We place every node radius + 20 pixels to the right of the right most node of its left subtree
+    int pos_x = (get_size_left(tree, root->left) + 1) * (radius + 20);
+    int old_x = *x + pos_x;
+
+    // We draw any lines that are to be drawn to the children before any recursion occurs 
+    // to be able to just clear the lines that will be inside the circles after all the recursion
+
+    if (root->left)
+    {
+        int p_x = old_x - pos_x;
+        bm_line(bitmap, old_x, y, p_x, p_y);
+    }
+
+    if (root->right)
+    {
+        // Radius + 20 pixels to the right of the right most node of the left subtree
+        int p_x = old_x + (get_size_right(tree, root->right->left) + 1) * (radius + 20);
+        bm_line(bitmap, old_x, y, p_x, p_y);
+    }
+
+    draw(bitmap, root->left, x, y + dist_per, dist_hor, dist_per, radius, tree);
+
+    *x = old_x;
+
+    draw(bitmap, root->right, x, y + dist_per, dist_hor, dist_per, radius, tree);
 
     bm_set_color(bitmap, bm_atoi("white")); // Since the lines are from the parnent's center to its child we need to remove the line inside the circle
-    bm_fillcircle(bitmap, x, y, radius);    // We do this here only for the parent because it will recursively be done to the children 
-    
+    bm_fillcircle(bitmap, old_x, y, radius);    // We do this here only for the parent because it will recursively be done to the children 
+
     bm_set_color(bitmap, bm_atoi("black"));
-    bm_circle(bitmap, x, y, radius);        // Draw the circle
+    bm_circle(bitmap, old_x, y, radius);        // Draw the circle
 
-
-    // Now just write the root's value and continue with its childrend
-    char* num = int_to_str(*(int*)root->key);
+    // Now just write the root's value and continue with its children
+    char* num = voidp_to_str(root->key);
 
     int th = bm_text_height(bitmap, num);
     int tw = bm_text_width(bitmap, num);
-    bm_puts(bitmap, x - tw / 2, y - th / 2, num);
+    bm_puts(bitmap, old_x - tw / 2, y - th / 2, num);
 
     free(num);
-
-
-    levels--;
-    
-    draw(bitmap, root->LEFT_CHILD, x - con, y + dist_per, dist_hor, dist_per, radius, levels);
-    draw(bitmap, root->RIGHT_CHILD, x + con, y + dist_per, dist_hor, dist_per, radius, levels);
-
-    levels++;
-    
 }
 
 
-int get_max_height(NODE root, int height)
+static int get_max_height(NODE root, int height)
 {
     if (root == NULL)
         return height - 1;
 
-    int l = get_max_height(root->LEFT_CHILD, height + 1);
-    int r = get_max_height(root->RIGHT_CHILD, height + 1);
+    int l = get_max_height(root->left, height + 1);
+    int r = get_max_height(root->right, height + 1);
     
     return (l > r) ? l : r;
 }
+
+
+void tree_draw(TREE tree, char* image_name)
+{
+    if (tree->size == 0)
+    {
+        Bitmap* bitmap = bm_create(100, 100);
+
+        bm_set_color(bitmap, bm_atoi("white"));
+        bm_clear(bitmap);
+        bm_save(bitmap, image_name);       
+
+        bm_free(bitmap);
+
+        return ;
+    }
+
+
+    int levels = get_max_height(tree->root, 1);
+
+    int radius = 20;
+
+    int height = (radius + 20) * levels * 2; 
+    int width = (radius + 20) * (avl_size(tree) + 1); 
+
+    int dist_hor = (radius + 20);
+    int dist_per = (radius + 20) * 2;
+
+
+    Bitmap* bitmap = bm_create(width, height);
+
+    bm_set_color(bitmap, bm_atoi("white"));
+    bm_clear(bitmap);
+    bm_set_color(bitmap, bm_atoi("black"));
+
+    int x = 0;
+    int y = radius + 20; // Starting coordinates
+    
+    draw(bitmap, tree->root, &x, y, dist_hor, dist_per, radius, tree); 
+        
+        
+    bm_save(bitmap, image_name);       
+
+    bm_free(bitmap);
+}   

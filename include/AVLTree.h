@@ -63,5 +63,5 @@ void avl_destroy(AVLTree tree);
 void avl_print_tree(AVLTree tree);
 
 #ifdef DRAW    
-    void avl_draw(AVLTree tree, char* image_name);
+    void avl_draw(AVLTree tree, char* image_name, char* (*to_str)(void* a));
 #endif
