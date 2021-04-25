@@ -12,6 +12,7 @@
 #define NEXT avl_next
 #define PREV avl_prev
 
+
 static int get_size_left(TREE tree, NODE root)
 {
     int count = 1;
