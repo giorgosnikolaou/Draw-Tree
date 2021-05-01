@@ -95,9 +95,13 @@ int main(void)
     avl_insert(tree, create_int(86));
     avl_insert(tree, create_int(85));
     avl_insert(tree, create_int(84));
+    avl_insert(tree, create_int(90));
+    avl_insert(tree, create_int(84));
 
     // int a = 3;
     // avl_remove(tree, &a);
+
+    printf("Size: %d\n", avl_size(tree)); // Should be 16
 
     #ifdef DRAW
         avl_draw(tree, "tree.png", int_to_str);

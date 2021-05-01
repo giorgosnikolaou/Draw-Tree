@@ -32,6 +32,7 @@ static int get_size_right(TREE tree, NODE root)
 }
 
 
+// Θ(nlogn)
 static void draw(Bitmap* bitmap, NODE root, int* x, int y, int dist_hor, int dist_per, int radius, TREE tree)
 {
     if (root == NULL)

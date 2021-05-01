@@ -539,26 +539,16 @@ void avl_destroy(AVLTree tree)
 
 
 #ifdef DRAW
-    
-    static int get_size_left(AVLTree tree, AVLNode root)
+    static int get_size(AVLTree tree, AVLNode root)
     {
-        int count = 1;
-        for (AVLNode node = node_find_min(root), max = node_find_max(root); node != max; node = avl_next(tree, node))
-            count++;
-        
-        return node_find_min(root) ? count : 0;
+      if (root == NULL)
+        return 0;
+      
+      return get_size(tree, root->left) + get_size(tree, root->right) + 1;
     }
 
-    static int get_size_right(AVLTree tree, AVLNode root)
-    {
-        int count = 1;
-        for (AVLNode node = node_find_max(root), min = node_find_min(root); node != min; node = avl_prev(tree, node))
-            count++;
-        
-        return node_find_max(root) ? count : 0;
-    }
-
-
+    // O(nlogn)
+    // Could be O(n) if every node stored the size of the tree rooted with node (Like my btree ATD)
     static void draw(Bitmap* bitmap, AVLTree tree, char* (*to_str)(void* a), AVLNode root, int* x, int y, int dist_hor, int dist_per, int radius)
     {
         if (root == NULL)
@@ -568,20 +558,20 @@ void avl_destroy(AVLTree tree)
         int p_y = y + dist_per;
         
         // We place every node radius + 20 pixels to the right of the right most node of its left subtree
-        int old_x = *x + (get_size_left(tree, root->left) + 1) * (radius + 20);;
+        int old_x = *x + (get_size(tree, root->left) + 1) * (radius + 20);;
 
         // We draw any lines that are to be drawn to the children before any recursion occurs 
         // to be able to just clear the lines that will be inside the circles after all the recursion
 
         if (root->left)
         {
-            int p_x = old_x - (get_size_left(tree, root->left->right) + 1) * (radius + 20);
+            int p_x = old_x - (get_size(tree, root->left->right) + 1) * (radius + 20);
             bm_line(bitmap, old_x, y, p_x, p_y);
         }
 
         if (root->right)
         {
-            int p_x = old_x + (get_size_right(tree, root->right->left) + 1) * (radius + 20);
+            int p_x = old_x + (get_size(tree, root->right->left) + 1) * (radius + 20);
             bm_line(bitmap, old_x, y, p_x, p_y);
         }
 
