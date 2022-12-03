@@ -61,155 +61,244 @@ void avl_print_tree(AVLTree tree)
 }
 
 
-// Returns the maximum of two integers 
-static int max(int a, int b) 
-{ 
-    return (a > b) ? a : b; 
-} 
-  
-
-// Returns the height of the tree 
 static int height(AVLNode node) 
 { 
-    if (node == NULL) 
-        return 0; 
-
-    return node->height; 
+    return node ? node->height : 0; 
 } 
-
-
-// Helper function that allocates a new node with the given key and sets
-// as NULL left and right pointers. 
-static AVLNode new_node(void* key) 
+static int update_height(AVLNode node) 
 { 
-    AVLNode node = malloc(sizeof(*node)); 
+    int left = height(node->left);
+    int right = height(node->right);
 
-    if (node == NULL)
-    {
-        printf("Not enough available memory to create the node!\n");
-        exit(0);
-    }
-
-    node->key   = key; 
-    node->left   = NULL; 
-    node->right  = NULL; 
-    node->height = 1;  // new node is initially added at leaf 
-    return(node); 
-} 
-  
-
-// Right rotates subtree rooted with node 
-static AVLNode rotate_right(AVLNode node) 
-{ 
-    AVLNode node_left = node->left; 
-    AVLNode node_right = node_left->right; 
-  
-    // Perform rotation 
-    node_left->right = node; 
-    node->left = node_right; 
-  
-    // Update heights 
-    node->height = max(height(node->left), height(node->right)) + 1; 
-    node_left->height = max(height(node_left->left), height(node_left->right)) + 1; 
-  
-    // Return new root 
-    return node_left; 
-} 
-  
-
-// Left rotates subtree rooted with node  
-static AVLNode rotate_left(AVLNode node) 
-{ 
-    AVLNode node_right = node->right; 
-    AVLNode node_left = node_right->left; 
-  
-    // Perform rotation 
-    node_right->left = node; 
-    node->right = node_left; 
-  
-    //  Update heights 
-    node->height = max(height(node->left), height(node->right)) + 1; 
-    node_right->height = max(height(node_right->left), height(node_right->right)) + 1; 
-  
-    // Return new root 
-    return node_right; 
+    return ((left > right) ? left : right) + 1; 
 } 
 
+static AVLNode rotate_left(AVLNode node)
+{
+    AVLNode right = node->right;
+    AVLNode right_left = right->left;
 
-// Get Balance factor of node N 
-static int get_balance(AVLNode node) 
+    right->left = node;
+    node->right = right_left;
+
+    node->height = update_height(node);
+    right->height = update_height(right);
+
+    return right;
+}
+static AVLNode rotate_right(AVLNode node)
+{
+    AVLNode left = node->left;
+    AVLNode left_right = left->right;
+
+    left->right = node;
+    node->left = left_right;
+
+    node->height = update_height(node);
+    left->height = update_height(left);
+
+    return left;
+}
+
+static int balance_factor(AVLNode node) 
 { 
     if (node == NULL) 
         return 0; 
 
     return height(node->left) - height(node->right); 
 } 
-  
-
 static AVLNode fix_balance(AVLTree tree, AVLNode node)
 {
-    // Update height of this ancestor node
-    node->height = 1 + max(height(node->left), height(node->right)); 
-    
-    int balance = get_balance(node);  
-  
-    // If this node becomes unbalanced,  
-    // there are 4 cases  
-  
-    // Left Left Case  
-    if (balance > 1 && get_balance(node->left) >= 0)  
-        return rotate_right(node);  
-  
-    // Left Right Case  
-    if (balance > 1 && get_balance(node->left) < 0)  
-    {  
-        node->left = rotate_left(node->left); 
-        return rotate_right(node);  
-    }  
-  
-    // Right Right Case  
-    if (balance < -1 && get_balance(node->right) <= 0)  
-        return rotate_left(node);  
-  
-    // Right Left Case  
-    if (balance < -1 && get_balance(node->right) > 0)  
-    {  
-        node->right = rotate_right(node->right);  
-        return rotate_left(node);  
-    }  
+    node->height = update_height(node);
 
+    int balance = balance_factor(node);
+
+    if (balance > 1)    // Left - Right or Left - Left case
+    {
+        if (balance_factor(node->left) < 0)
+            node->left = rotate_left(node->left);
+        
+        return rotate_right(node);
+    }
+    else if (balance < -1)  // Right - Left or Right - Right case
+    {
+        if (balance_factor(node->right) > 0)
+            node->right = rotate_right(node->right);
+        
+        return rotate_left(node);
+    }
     
-    return node;  
+    // AVLNode isn't unbalanced
+    return node;
+
 }
 
 
-// Inserts a key in the subtree rooted 
-// with node and returns the new root of the subtree. 
-static AVLNode insert(AVLTree tree, AVLNode node, CompareFunc compare, void* key, bool* done) 
-{ 
-    /* 1.  Perform the normal BST insertion */
-    if (node == NULL) 
+static AVLNode node_find_max(AVLNode node) 
+{
+    // If there exist a right subtree the max is there, otherwise it's the node itself
+	return node && node->right ? node_find_max(node->right)	: node;									
+}
+static AVLNode node_find_min(AVLNode node) 
+{
+    // If there exist a left subtree the min is there, otherwise it's the node itself
+	return node && node->left ? node_find_min(node->left) : node;
+}
+
+// Stores the largest value of a subtree to key
+// Removes its node and fixes the heights going up the stack
+static AVLNode remove_max(AVLTree tree, AVLNode node, void** key)
+{
+    if (!node->right) 
     {
-        *done = true;
-        return new_node(key); 
+        AVLNode left = node->left;
+		*key = node->key;       
+
+        free(node);
+
+		return left;		
+	} 
+
+    node->right = remove_max(tree, node->right, key);
+
+    return fix_balance(tree, node);
+
+}
+static AVLNode insertR(AVLTree tree, AVLNode root, void* key)
+{
+    if (!root)
+    {
+        tree->size++;
+        return create_node(key);
     }
-  
-    int comp = compare(key, node->key);
 
-    if (comp < 0) 
-        node->left = insert(tree, node->left, compare, key, done); 
-    else if (comp > 0) 
-        node->right = insert(tree, node->right, compare, key, done); 
+    void* root_key = root->key;
+
+    int comp = tree->compare(root_key, key);
+
+    if (comp > 0)
+        root->left = insertR(tree, root->left, key);    
+    else if (comp < 0)
+        root->right = insertR(tree, root->right, key);
+    else 
+    {
+        if (tree->destroy)
+            tree->destroy(root_key);
+        
+        root->key = key;
+        return root;
+    }
     
-    // Equal keys are not allowed in BST, but we never have equal keys
 
-    return fix_balance(tree, node); 
-} 
+
+    return fix_balance(tree, root);
+
+}
+static AVLNode removeR(AVLTree tree, AVLNode root, void* key)
+{
+    if (!root)
+        return NULL;
+    
+    int comp = tree->compare(root->key, key);
+
+    if (comp > 0)
+        root->left = removeR(tree, root->left, key);
+    else if (comp < 0)
+        root->right = removeR(tree, root->right, key);
+    else
+    {
+        tree->size--;
+
+        if (!root->left)
+        {
+            AVLNode new_root = root->right;
+            destroy_node(root, tree->destroy);
+            return new_root;
+        }
+
+        if (!root->right)
+        {
+            AVLNode new_root = root->left;
+            destroy_node(root, tree->destroy);
+            return new_root;
+        }
+
+        // AVLNode is not a leaf
+        // Find its inorder predecessor, store its value to the root 
+        // and free the old value, the one the user wants to remove
+
+        void* new_key = NULL;
+        root->left = remove_max(tree, root->left, &new_key);
+        
+        if (tree->destroy)
+            tree->destroy(root->key);
+
+        root->key = new_key;
+
+        return fix_balance(tree, root);
+    }
+
+    if (!root)
+        return NULL;
+    
+    return fix_balance(tree, root);
+
+}
+static void destroyR(AVLNode root, DestroyFunc destroy)
+{
+    if (!root)
+        return ;
+    
+    destroyR(root->left, destroy);
+    destroyR(root->right, destroy);
+
+    destroy_node(root, destroy);
+}
+
+
+static void pt(int tabs)
+{
+    for (int i = 0; i < tabs; i++)
+        printf("\t");
+}
+static void printR(AVLNode root, ActionFunc print, int tabs)
+{
+    
+    pt(tabs);
+
+    if (!root)
+    {
+        printf("--\n");
+        return ;
+    }
+
+    print(root->key);
+    printf("\n");
+    // printf("height: %d\n", root->height);
+
+    if (!root->left && !root->right)
+        return ;
+    
+    printR(root->left, print, tabs + 1);
+    printR(root->right, print, tabs + 1);
+
+}
+static void inorderR(AVLNode root, ActionFunc visit)
+{
+    if (!root)
+        return ;
+    
+    inorderR(root->left, visit);
+
+    visit(root->key);
+
+    inorderR(root->right, visit);
+}
 
 
 static AVLNode find_node(AVLNode node, CompareFunc compare, void* key)
 {
-    if (node == NULL)
+    if (!node)
         return NULL;    // Not found
 
     int comp = compare(key, node->key);
@@ -218,27 +307,9 @@ static AVLNode find_node(AVLNode node, CompareFunc compare, void* key)
         return find_node(node->left, compare, key);
     else if (comp > 0)  // key > node->key and therfore key is located to the right subtree of node
         return find_node(node->right, compare, key);
-    else    // key = node->key, we found it
-        return node;
     
-
+    return node;
 }
-
-
-static AVLNode node_find_max(AVLNode node) 
-{
-    // If there exist a right subtree the max is there, otherwise it's the node itself
-	return node != NULL && node->right != NULL ? node_find_max(node->right)	: node;									
-}
-
-
-static AVLNode node_find_min(AVLNode node) 
-{
-    // If there exist a left subtree the min is there, otherwise it's the node itself
-	return node != NULL && node->left != NULL ? node_find_min(node->left) : node;
-}
-
-
 static AVLNode find_prev(AVLNode node, CompareFunc compare, AVLNode target) 
 {
 	// target: the node we want to find the previous of
@@ -260,17 +331,13 @@ static AVLNode find_prev(AVLNode node, CompareFunc compare, AVLNode target)
 		return find_prev(node->left, compare, target);
 
 	} 
-    else 
-    {
-        // target->key > node->key and therefore we go to the right subtree
-		AVLNode res = find_prev(node->right, compare, target);
-		return res != NULL ? res : node;
-	}
 
 
+    // target->key > node->key and therefore we go to the right subtree
+    AVLNode res = find_prev(node->right, compare, target);
+    return res ? res : node;
+	
 }
-
-
 static AVLNode find_next(AVLNode node, CompareFunc compare, AVLNode target) 
 {
 	// target: the node we want to find the next of
@@ -292,146 +359,24 @@ static AVLNode find_next(AVLNode node, CompareFunc compare, AVLNode target)
 		return find_next(node->right, compare, target);
 
 	} 
-    else 
-    {
-        // target->key < node->key and therefore we go to the left subtree
-		AVLNode res = find_next(node->left, compare, target);
-		return res != NULL ? res : node;
-	}
 
 
-}
-
-
-
-static AVLNode remove_min_node(AVLTree tree, AVLNode node, AVLNode* min_node)
-{
-    if (node->left == NULL) 
-    {
-		*min_node = node;       // Node is the smallest
-		return node->right;		// Right child is the new root
-	} 
-    else 
-    {
-		// Smallest value is in the left subtree
-        // We update node->left with the new root
-		node->left = remove_min_node(tree, node->left, min_node);
-
-        AVLNode temp = fix_balance(tree, node); 
-
-		return temp;
-	}
-}
-  
-// Recursive function to delete a node with given key from subtree with  
-// given root. It returns root of the modified subtree.  
-static AVLNode node_delete(AVLTree tree, AVLNode node, CompareFunc compare, void* key, void** to_destroy, bool* done)  
-{  
-    
-    // to_destroy is the node value we need to destroy with the destroy func given when creating the array
-    // done is to see if we actually removed anything
-
-    // STEP 1: PERFORM STANDARD BST DELETE  
-    if (node == NULL) 
-    {
-        *done = false;
-        return node;  
-    } 
-  
-    int comp = compare(key, node->key);
-
-    // If the key to be deleted is smaller  
-    // than the root's key, then it lies 
-    // in left subtree  
-    if (comp < 0)  
-        node->left = node_delete(tree, node->left, compare, key, to_destroy, done);
-  
-    // If the key to be deleted is greater  
-    // than the root's key, then it lies  
-    // in right subtree  
-    else if(comp > 0)  
-        node->right = node_delete(tree, node->right, compare, key, to_destroy, done);
-  
-    // if key is same as root's key, then  
-    // This is the node to be deleted  
-    else
-    {  
-        *done = true;
-        *to_destroy = node->key;
-        
-        // node with only one child or no child  
-        if( (node->left == NULL) || (node->right == NULL) )  
-        {  
-            // Get the child or NULL if it has no childs
-            AVLNode temp = node->left ? node->left : node->right;  
-  
-            // No child case  
-            if (temp == NULL)  
-            {  
-                temp = node;  
-                node = NULL;  
-            }  
-            else // One child case  
-                *node = *temp; // Copy the contents of  
-                               // the non-empty child  
-            free(temp);  
-        }  
-        else
-        {  
-            AVLNode min_right;
-			node->right = remove_min_node(tree, node->right, &min_right);
-
-			min_right->left = node->left;
-			min_right->right = node->right;
-
-			free(node);
-            
-			AVLNode temp = fix_balance(tree, min_right); 
-
-            return temp;
-        }  
-    }  
-  
-    // If the tree had only one node before removal
-    // then return  
-    if (node == NULL)
-        return node;
-    
-       
-    
-    AVLNode temp = fix_balance(tree, node); 
-    return temp;
-}  
-
-
-// Recursivly destroys all the nodes of the tree
-static void destroy_all(AVLNode node, DestroyFunc destroy)
-{
-    if (node == NULL)   // if we find a NULL node we reached the end of a subtree so we just return
-		return;
+    // target->key < node->key and therefore we go to the left subtree
+    AVLNode res = find_next(node->left, compare, target);
+    return res ? res : node;
 	
-	destroy_all(node->left, destroy);   // destroy every node's left subtree
-	destroy_all(node->right, destroy);  // destroy every node's right subtree
-
-	if (destroy != NULL)    // if a destroy function has been given destroy keys
-		destroy(node->key);
-
-	free(node); // finally free the node
 }
 
-
-/* header functions */
 
 AVLTree avl_create(CompareFunc compare, DestroyFunc destroy)
 {
-    assert(compare != NULL);
+    assert(compare);
 
     AVLTree tree = malloc(sizeof(*tree));
+    assert(tree);
 
-    assert(tree != NULL);
-
-    tree->root = NULL;
-    tree->size = 0;
+    tree->root    = NULL;
+    tree->size    = 0;
     tree->compare = compare;
     tree->destroy = destroy;
 
@@ -439,103 +384,78 @@ AVLTree avl_create(CompareFunc compare, DestroyFunc destroy)
 
 }
 
-
-int avl_size(AVLTree tree)
+size_t avl_size(AVLTree tree)
 {
-    assert(tree != NULL);
     return tree->size;
 }
 
-
-bool avl_remove(AVLTree tree, void* key) 
-{
-    assert(tree != NULL);
-
-
-    bool done;
-	void* to_remove = NULL;
-	tree->root = node_delete(tree, tree->root, tree->compare, key, &to_remove, &done);
-
-    
-
-	// Change size only if we have actually removed a node
-	if (done)
-    {
-		tree->size--;
-
-		if (tree->destroy != NULL)  // if there was given a non NULL destroy func 
-			tree->destroy(to_remove);   // destroy the key of the node we just remove
-	}
-
-	return done;
-}
-
-
-void avl_insert(AVLTree tree, void* key) 
-{
-    assert(tree != NULL);
-    
-	bool done = 0;
-	tree->root = insert(tree, tree->root, tree->compare, key, &done);
-
-	// Change size only if we have actually removed a node
-	if (done)
-		tree->size++;
-    else if (tree->destroy != NULL)
-        tree->destroy(key);
-	
-}
-
-
-AVLNode avl_find_node(AVLTree tree, void* key) 
-{    
-    assert(tree != NULL);
-	return find_node(tree->root, tree->compare, key);
-}
-
-
-void* avl_node_value(AVLNode node) 
-{
-    assert(node != NULL);
-	return node->key;
-}
-
-
-AVLNode avl_next(AVLTree tree, AVLNode node) 
-{
-    assert(tree != NULL);
-	return find_next(tree->root, tree->compare, node);
-}
-
-
-AVLNode avl_prev(AVLTree tree, AVLNode node) 
-{
-    assert(tree != NULL);
-	return find_prev(tree->root, tree->compare, node);
-}
-
-
 AVLNode avl_first(AVLTree tree)
 {
-    assert(tree != NULL);
     return node_find_min(tree->root);
 }
 
-
 AVLNode avl_last(AVLTree tree)
 {
-    assert(tree != NULL);
     return node_find_max(tree->root);
 }
 
+AVLNode avl_find_node(AVLTree tree, void* key)
+{
+    return find_node(tree->root, tree->compare, key);
+}
+
+AVLNode avl_next(AVLTree tree, AVLNode node) 
+{
+	return find_next(tree->root, tree->compare, node);
+}
+
+AVLNode avl_prev(AVLTree tree, AVLNode node) 
+{
+	return find_prev(tree->root, tree->compare, node);
+}
+
+void* avl_node_value(AVLNode node)
+{
+    return node->key;
+}
 
 void avl_destroy(AVLTree tree)
 {
-    assert(tree != NULL);
-    destroy_all(tree->root, tree->destroy);
+    destroyR(tree->root, tree->destroy);
     free(tree);
 }
 
+void avl_insert(AVLTree tree, void* key)
+{
+    assert(key);
+    tree->root = insertR(tree, tree->root, key);
+}
+
+int avl_remove(AVLTree tree, void* key)
+{
+    assert(key);
+
+    int old_size = tree->size;
+    tree->root = removeR(tree, tree->root, key);
+    return old_size > tree->size;
+}
+
+void avl_print(AVLTree tree, ActionFunc print)
+{
+    printR(tree->root, print, 0);
+}
+
+void avl_inorder(AVLTree tree, ActionFunc visit)
+{
+    inorderR(tree->root, visit);
+}
+
+DestroyFunc avl_set_destroy(AVLTree avl, DestroyFunc destroy)
+{
+    DestroyFunc old = avl->destroy;
+    avl->destroy = destroy;
+    return old;
+}
 
 
 #ifdef DRAW
